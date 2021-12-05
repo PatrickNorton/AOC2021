@@ -44,8 +44,6 @@ def is_winner(board):
 
 
 def score(board, value):
-    print(board)
-    print(value)
     total = 0
     for row in board:
         total += sum(i for i in row if i is not None)
@@ -72,10 +70,10 @@ def calc_loser(inputs, boards):
             if location is not None:
                 board[location[0]][location[1]] = None
                 if is_winner(board):
-                    print(score(board, value))
                     if len(new_boards) == 1:
                         return score(board, value)
                     new_boards.remove(board)
 
 
+print(calc_winner(*load_file("./input.txt")))
 print(calc_loser(*load_file("./input.txt")))
