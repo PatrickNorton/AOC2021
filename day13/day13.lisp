@@ -1,0 +1,66 @@
+(defun load-file (file)
+  (with-open-file (in file)
+    (let* ((data (load-data in))
+           (folds (load-folds in)))
+      (values data folds))))
+
+(defun load-data (in)
+  (loop for line = (read-line in nil) while (/= (length line) 0)
+        for comma-pos = (position #\, line)
+        for x = (read-from-string (subseq line 0 comma-pos))
+        for y = (read-from-string  (subseq line (1+ comma-pos)))
+        collect (cons x y) into values
+        finally (return (create-table values))))
+
+(defun load-folds (in)
+  (loop for line = (read-line in nil) while line
+        for post-prefix = (subseq line (length "fold along "))
+        for eq-pos = (position #\= post-prefix)
+        for axis = (read-from-string (subseq post-prefix 0 eq-pos))
+        for position = (read-from-string (subseq post-prefix (1+ eq-pos)))
+        collect (cons axis position)))
+
+(defun create-table (values)
+  (let ((table (make-hash-table :test #'equal)))
+    (dolist (val values)
+      (assert (consp val))
+      (setf (gethash val table) t))
+    table))
+
+(defun fold (data axis position)
+  (loop with result = (make-hash-table :test #'equal)
+        for datum being the hash-keys of data
+        do (setf (gethash (map-pos datum axis position) result) t)
+        finally (return result)))
+
+(defun map-pos (pair axis position)
+  (ecase axis
+    (x (assert (/= (car pair) position))
+     (if (> (car pair) position)
+         (cons (- (* 2 position) (car pair)) (cdr pair))
+         pair))
+    (y (assert (/= (cdr pair) position))
+     (if (> (cdr pair) position)
+         (cons (car pair) (- (* 2 position) (cdr pair)))
+         pair))))
+
+(defun text-list (values)
+  (loop for j from 0 to (1- (cadr (array-dimensions values)))
+        for row = (loop for i from 0 to (1- (car (array-dimensions values)))
+                        collect (aref values i j))
+        for mapped-row = (map 'list (lambda (x) (if x #\# #\.)) row)
+        collect (format nil "~{~c~^ ~}" mapped-row)))
+
+(defun part-1 ()
+  (multiple-value-bind (data folds) (load-file "./input.txt")
+    (let ((first-fold (car folds)))
+      (hash-table-count (fold data (car first-fold) (cdr first-fold))))))
+
+(defun part-2 ()
+  (multiple-value-bind (data folds) (load-file "./input.txt")
+    (let ((current data)
+          (result (make-array '(50 50) :initial-element nil)))
+      (dolist (fold folds)
+        (setf current (fold current (car fold) (cdr fold))))
+      (maphash (lambda (x y) (setf (aref result (car x) (cdr x)) y)) current)
+      (text-list result))))
